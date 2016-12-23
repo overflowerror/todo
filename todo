@@ -1,0 +1,102 @@
+#!/bin/bash
+
+version="1.2"
+
+mode="show"
+nr=-1
+
+if test "$1" != ""; then
+	case "$1" in
+		-h|--help) cat << EOF
+todo version $version Copyright (c) by overflowerror
+todo manager with zsh integration
+
+usage: $0 [option]
+
+Options:
+	-h      --help		show this help message
+	-s      --show		show current todos
+	-n      --number	get number of unchecked todos
+	-a      --add		add todos interactivly
+	-c ID   --check ID
+	        --done ID	check/uncheck todo item with id ID
+	-d ID   --delete ID	delete todo item with id ID
+
+Calling \`$0\` without any parameter is equvalent to \`$0 --show\`
+
+Have fun with todo.
+EOF
+				exit 0;;
+		-s|--show) ;;
+		-n|--number) mode="number";;
+		-a|--add) mode="add";;
+		-c|"--done"|--check) if test "$2" = ""; then
+				echo "something is missing."
+				exit 1
+			fi; nr="$2"; mode="check";;
+		-d|--delete) if test "$2" = ""; then
+				echo "something is missing."
+				exit 1
+			fi; nr="$2"; mode="delete";;
+		*) echo "Unknown parameter"; exit 1;;
+	esac
+fi
+
+file=~/.todo
+
+if test ! -f "$file"; then
+	touch "$file"
+fi
+
+todo=$(cat "$file")
+
+if test $mode = "add"; then
+	read -e -p "TODO> " line
+	echo "- $line" >> $file
+	exit 0
+fi
+
+if test $mode = "number"; then
+	if test "$todo" = ""; then
+		echo 0;
+	else
+		echo "$todo" | grep "-" | wc -l
+	fi
+	exit 0
+fi
+
+
+if test "$todo" = ""; then
+	exit 5
+fi
+
+if test $mode != "show"; then
+	echo -n > $file
+fi
+
+i=0
+echo "$todo" | while read line; do
+	i=$(($i+1))
+	text=$(echo $line | awk '{$1 = ""; print $0}')
+	check=$(echo $line | awk '{print $1}')
+	case "$mode" in
+		"show") if test "$check" = "+"; then
+				echo -e "$i ✓ \033[9m$text \033[0m"
+			else
+				echo -e "$i   \033[1m$text \033[0m"
+			fi;;
+		"check") if test "$i" = "$nr"; then
+				if test "$check" = "+"; then
+					echo - $text >> $file
+				else
+					echo + $text >> $file
+				fi
+			else
+				echo $line >> $file
+			fi;;	
+		"delete") if test "$i" != "$nr"; then
+				echo $line >> $file
+			fi;;
+		*) ;;
+	esac
+done
